@@ -21,24 +21,27 @@ import java.util.Map;
 public class Application extends Controller {
 
     private static Logger.ALogger log = play.Logger.of("Herioux");
+    private static  DbxWebAuth webAuth ;
 
     public static Result index() {
         return ok(index.render());
     }
 
-    private static DbxWebAuth getDropboxWebAuth() {
+    static {
+
         String APP_KEY = "npv9f72j4ldebvg";
         String APP_SECRET = "bwc2xenbkuagiee";
         DbxAppInfo appInfo = new DbxAppInfo(APP_KEY, APP_SECRET);
 
         DbxRequestConfig config = new DbxRequestConfig(
-                "Webhooks sample", Locale.getDefault().toString());
+                "Sundoro", Locale.getDefault().toString());
 
-        String sessionKey = java.util.UUID.randomUUID().toString();
+        String sessionKey = "dropbox-csrf-token";//java.util.UUID.randomUUID().toString();
         Map<String, String> sessionMap = new HashMap<>();
         Http.Session session = new Http.Session(sessionMap);
         String redirectUrl = "";
-        if (Http.Context.current().request().host().startsWith("127.0.0.1")) {
+        if (Http.Context.current().request().host().startsWith("127.0.0.1") ||
+                Http.Context.current().request().host().startsWith("localhost")) {
             redirectUrl = routes.Application.oAuthCallBack().
                     absoluteURL(Http.Context.current().request());
         }
@@ -47,17 +50,19 @@ public class Application extends Controller {
                     absoluteURL(Http.Context.current().request(), true);
         }
         DbxSessionStore csrfSessionStore = new DbxPlaySessionStore(session,sessionKey);
-        return new DbxWebAuth(config,appInfo,redirectUrl,csrfSessionStore);
+        webAuth = new DbxWebAuth(config,appInfo,redirectUrl,csrfSessionStore);
     }
 
     public static Result getFlow() {
-        return redirect(getDropboxWebAuth().start(routes.Application.oAuthCallBack().url()));
+        return redirect(webAuth.start());
     }
 
     public static Promise<Result> oAuthCallBack() {
         DbxAuthFinish authFinish;
         try {
-            authFinish = getDropboxWebAuth().finish(Http.Context.current().request().queryString());
+            play.mvc.Http.Request request = request();
+            log.info("***Request param are ****",request.toString());
+            authFinish = webAuth.finish(request.queryString());
         }
         catch (DbxWebAuth.BadRequestException ex) {
             log.error("On /dropbox-auth-finish: Bad request: " + ex.getMessage());
@@ -65,6 +70,7 @@ public class Application extends Controller {
         }
         catch (DbxWebAuth.BadStateException ex) {
             // Send them back to the start of the auth flow.
+            //todo use the same csrf key both the times
             log.info("Bad state exception. Redirecting again.");
             String redirectUrl = "";
             if (Http.Context.current().request().host().startsWith("127.0.0.1")) {
