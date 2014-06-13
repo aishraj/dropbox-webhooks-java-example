@@ -14,6 +14,10 @@ import redis.clients.jedis.JedisPool;
 import views.html.done;
 import views.html.index;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -22,6 +26,8 @@ public class Application extends Controller {
 
     private static Logger.ALogger log = play.Logger.of("Herioux");
     private static  DbxWebAuth webAuth ;
+    private static Jedis redisClient;
+    private static DbxRequestConfig dropboxConfig;
 
     public static Result index() {
         return ok(index.render());
@@ -33,10 +39,10 @@ public class Application extends Controller {
         String APP_SECRET = "bwc2xenbkuagiee";
         DbxAppInfo appInfo = new DbxAppInfo(APP_KEY, APP_SECRET);
 
-        DbxRequestConfig config = new DbxRequestConfig(
+        dropboxConfig = new DbxRequestConfig(
                 "Sundoro", Locale.getDefault().toString());
 
-        String sessionKey = "dropbox-csrf-token";//java.util.UUID.randomUUID().toString();
+        String sessionKey = "random-csrf-token-key";
         Map<String, String> sessionMap = new HashMap<>();
         Http.Session session = new Http.Session(sessionMap);
         String redirectUrl = "";
@@ -50,7 +56,11 @@ public class Application extends Controller {
                     absoluteURL(Http.Context.current().request(), true);
         }
         DbxSessionStore csrfSessionStore = new DbxPlaySessionStore(session,sessionKey);
-        webAuth = new DbxWebAuth(config,appInfo,redirectUrl,csrfSessionStore);
+        webAuth = new DbxWebAuth(dropboxConfig,appInfo,redirectUrl,csrfSessionStore);
+
+        JedisPool pool = Play.application().plugin(RedisPlugin.class).jedisPool();
+        Jedis redisClient = pool.getResource();
+
     }
 
     public static Result getFlow() {
@@ -106,27 +116,10 @@ public class Application extends Controller {
 
         //todo: store the values in redis
 
-        JedisPool pool = Play.application().plugin(RedisPlugin.class).jedisPool();
-        Jedis jedis = pool.getResource();
+        redisClient.hset("tokens", uid, accessToken);
 
-        jedis.hset("tokens",uid,accessToken);
+        Promise<Boolean> performConversionForUser = Promise.promise(() -> processUser(uid));
 
-        Promise<Boolean> performConversionForUser = Promise.promise(() -> processUser(uid,jedis));
-
-        // resultPromise.
-
-        /*
-
-        Promise<Result> exception1 =  resultPromise.recover(new Function<Throwable, Result>() {
-            @Override
-            public Result apply(Throwable throwable) throws Throwable {
-                return null;
-            }
-        });
-*/
-        //Promise<Void> performConversionForUser = //Promise.promise((uid) -> processUser(uid));
-        //now need to use akka to process user data, get the delta
-        //process(uid);
 
         return performConversionForUser.map(aBoolean -> {
             if (aBoolean) {
@@ -154,7 +147,44 @@ public class Application extends Controller {
         return true;
     }
 
-    private static Boolean processUser(String uid, Jedis jedis) {
+    private static Boolean processUser(String uid) {
+        String oauthToken = redisClient.hget("tokens",uid);
+        String userCursor = redisClient.hget("cursors",uid);
+
+        DbxClient dropboxClient = new DbxClient(dropboxConfig,uid);
+        boolean hasMore = true;
+        DbxDelta<DbxEntry> result = null;
+        while (hasMore) {
+            try {
+                 result = dropboxClient.getDelta(userCursor);
+            } catch (DbxException e) {
+                log.error("Error getting the user detail for uid : {}, cursor : {}",uid,userCursor);
+                return false;
+            }
+            if (result != null) {
+               for ( DbxDelta.Entry<DbxEntry> entry :  result.entries) {
+                    if (entry.metadata == null || entry.metadata.isFolder() || !entry.lcPath.endsWith(".md")) {
+                        continue;
+                    }
+                   String htmlContent = "Hello world"; //Replace with impl
+                   File uploadFile = new File(htmlContent);
+                   String fileName = entry.lcPath.substring(entry.lcPath.length()-4); //todo check this
+                   fileName = fileName + ".html";
+                   try (InputStream inputStream = new ByteArrayInputStream(htmlContent.getBytes())) {
+                       DbxEntry.File uploadedFile = dropboxClient.uploadFile(fileName, DbxWriteMode.force(), uploadFile.length(), inputStream);
+                   } catch (IOException e) {
+                       log.error("IO Exception while uploading file : {} ", e);
+                       return false;
+                   } catch (DbxException e) {
+                       log.error("DbxException while uploading file : {} ", e);
+                       return false;
+                   }
+               }
+
+                hasMore = result.hasMore;
+            }
+
+        }
         return true;
     }
 }
