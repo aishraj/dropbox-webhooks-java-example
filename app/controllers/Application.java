@@ -24,10 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 public class Application extends Controller {
 
@@ -137,7 +134,7 @@ public class Application extends Controller {
     private static Boolean validateRequest() {
         String[] signatureArray = request().headers().get("X-Dropbox-Signature");
         String signature = signatureArray[0];
-        log.info("*********** Signature array for dropbox header signature is ***** : {}", signatureArray);
+        log.info("*********** Signature array for dropbox header signature is ***** :", Arrays.asList(signatureArray).toString());
         System.err.println("********* signature array is ********" + signatureArray);
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
@@ -221,7 +218,8 @@ public class Application extends Controller {
                        return false;
                    }
                }
-
+                userCursor = result.cursor;
+                redisClient.hset("cursors",uid,userCursor);
                 hasMore = result.hasMore;
             }
 
