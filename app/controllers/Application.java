@@ -142,6 +142,9 @@ public class Application extends Controller {
             Map<String, String[]> headers = request().headers();
             System.err.println(" ++++ Headers are: " + headers.toString());
             Http.RequestBody requestBody = request().body();
+            if (requestBody == null)  {
+                System.err.println("^^^^^ Request Body is NULL ^^^");
+            }
             System.err.println("Request body is: " + requestBody.asRaw().asBytes());
             byte[] tempBytes = requestBody.asRaw().asBytes();
             if (tempBytes != null) {
