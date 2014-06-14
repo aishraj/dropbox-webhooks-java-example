@@ -135,15 +135,24 @@ public class Application extends Controller {
         String signature = signatureArray[0];
         log.info("*********** Signature array for dropbox header signature is ***** :", Arrays.asList(signatureArray).toString());
         System.err.println("********* signature array is ********" + Arrays.asList(signatureArray).toString());
-        if (signature == null ) {
-            System.err.println("#### Signature is null ###");
-        }
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
             sha256_HMAC.init(secretKey);
             String message = request().body().asText();
-            return signature.equals(Hex.encodeHexString(sha256_HMAC.doFinal(message.getBytes())));
+            if (message == null) {
+                System.err.println("## Message is null ##");
+            }
+            byte[] messageBytes = message.getBytes();
+
+            if (messageBytes == null) {
+                System.err.println("## messageBytes is null ##");
+            }
+            byte[] encodedBytes = sha256_HMAC.doFinal(messageBytes);
+            if (encodedBytes == null) {
+                System.err.println("## encodedBytes is null ##");
+            }
+            return signature.equals(Hex.encodeHexString(encodedBytes));
         } catch (NoSuchAlgorithmException e) {
             log.error("Cannot validate request. Invalid algorithm : {}",e);
             return false;
