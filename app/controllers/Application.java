@@ -140,7 +140,7 @@ public class Application extends Controller {
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
             sha256_HMAC.init(secretKey);
             Http.RequestBody requestBody = request().body();
-            String message = requestBody.asJson().asText();
+            String message = requestBody.asJson().toString();
             byte[] messageBytes = message.getBytes();
 
             //String message = requestBody.asText();
@@ -180,7 +180,19 @@ public class Application extends Controller {
         {
             Map.Entry<String, JsonNode> item = source.next();
             if (item.getKey().equals("delta")) {
-                JsonNode node = item.getValue();
+                JsonNode deltaNode = item.getValue();
+                Iterator<Map.Entry<String, JsonNode>> userIterator = deltaNode.fields();
+                while(deltaNode.fields().hasNext()) {
+                    Map.Entry<String, JsonNode> userNode = source.next();
+                    if (userNode.getKey().equals("users")) {
+                        JsonNode usersArrayNode = userNode.getValue();
+                        if (usersArrayNode.isArray() ) {
+                            for (final JsonNode objNode : usersArrayNode) {
+                                processUser(objNode.asText());
+                            }
+                        }
+                    }
+                }
             }
         }
         return Promise.pure(ok()); //todo remove this
@@ -189,8 +201,6 @@ public class Application extends Controller {
     public static Result done() {
         return ok(done.render());
     }
-
-
 
     private static Boolean processUser(String uid) {
         String oauthToken = redisClient.hget("tokens",uid);
