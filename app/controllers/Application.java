@@ -134,13 +134,11 @@ public class Application extends Controller {
         String[] signatureArray = request().headers().get("X-Dropbox-Signature");
         String signature = signatureArray[0];
         System.err.println("********* signature array is ********" + Arrays.asList(signatureArray).toString());
-        System.err.println("Content type is : "+request().getHeader("Content-Type"));
+        System.err.println("---------Content type is : "+request().getHeader("Content-Type"));
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
             sha256_HMAC.init(secretKey);
-            Map<String, String[]> headers = request().headers();
-            System.err.println(" ++++ Headers are: " + headers.toString());
             Http.RequestBody requestBody = request().body();
             byte[] messageBytes = requestBody.asRaw().asBytes();
 
