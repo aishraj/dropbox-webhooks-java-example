@@ -135,6 +135,9 @@ public class Application extends Controller {
         String signature = signatureArray[0];
         log.info("*********** Signature array for dropbox header signature is ***** :", Arrays.asList(signatureArray).toString());
         System.err.println("********* signature array is ********" + Arrays.asList(signatureArray).toString());
+        if (signature == null ) {
+            System.err.println("#### Signature is null ###");
+        }
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
