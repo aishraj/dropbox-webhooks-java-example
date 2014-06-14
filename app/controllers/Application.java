@@ -7,7 +7,10 @@ import org.apache.commons.codec.binary.Hex;
 import play.Logger;
 import play.Play;
 import play.libs.F.Promise;
-import play.mvc.*;
+import play.mvc.Controller;
+import play.mvc.Http;
+import play.mvc.Result;
+import play.mvc.Results;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import views.html.done;
@@ -137,8 +140,8 @@ public class Application extends Controller {
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
             sha256_HMAC.init(secretKey);
             Http.RequestBody requestBody = request().body();
-           // String message = requestBody.asJson().asText();
-            byte[] messageBytes = requestBody.asRaw().asBytes(); //message.getBytes();
+            String message = requestBody.asJson().asText();
+            byte[] messageBytes = message.getBytes();
 
             //String message = requestBody.asText();
             //todo handle nulls properly
@@ -166,7 +169,6 @@ public class Application extends Controller {
         }
     }
 
-    @BodyParser.Of(BodyParser.Raw.class)
     public static Promise<Result> performWebHookTask() {
         if (!validateRequest()) {
             System.err.println("Validation of the request failed");
