@@ -139,7 +139,16 @@ public class Application extends Controller {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
             sha256_HMAC.init(secretKey);
-            String message = request().body().asText();
+            Map<String, String[]> headers = request().headers();
+            System.err.println(" ++++ Headers are: " + headers.toString());
+            Http.RequestBody requestBody = request().body();
+            if (requestBody == null) {
+                System.err.println("%%%% Request body is null %%%");
+            }
+            else if (requestBody.asJson().asText() == null) {
+                System.err.println(" ^^^ JSON message is null ^^^");
+            }
+            String message = requestBody.asText();
             if (message == null) {
                 System.err.println("## Message is null ##");
             }
