@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.plugin.RedisPlugin;
 import org.apache.commons.codec.binary.Hex;
+import org.markdown4j.Markdown4jProcessor;
 import play.Logger;
 import play.Play;
 import play.libs.F.Promise;
@@ -17,9 +18,13 @@ import views.html.index;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.Map;
 
 public class Application extends Controller {
 
@@ -235,9 +240,37 @@ public class Application extends Controller {
                     if (entry.metadata == null || entry.metadata.isFolder() || !entry.lcPath.endsWith(".md")) {
                         continue;
                     }
-                   String htmlContent = "Hello world"; //Replace with impl
-                   String fileName = entry.lcPath.substring(entry.lcPath.length()-4); //todo check this
-                   fileName = "/" + fileName + ".html";
+                  // String htmlContent = "Hello world"; //Replace with impl
+                   File targetFile;
+                   DbxEntry.File dropboxFile;
+                   try {
+                       targetFile = File.createTempFile("dropbox_working","temp");
+                   } catch (IOException e) {
+                       log.error("Unable to create a temp file to acquire from dropbox",e);
+                       return false;
+                   }
+                   String markDownContent;
+                   //ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                   try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
+                       dropboxFile = dropboxClient.getFile(entry.lcPath,null,byteArrayOutputStream);
+                       markDownContent = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
+
+                   } catch (IOException e) {
+                       log.error("Unable to create output stream for the file",e);
+                       return false;
+                   } catch (DbxException e) {
+                       log.error("Unable to get file from dropbox",e);
+                       return false;
+                   }
+                   String htmlContent;
+                   try {
+                       htmlContent = new Markdown4jProcessor().process(markDownContent);
+                   } catch (IOException e) {
+                       log.error("Unable to convert markdown to html content",e);
+                       return false;
+                   }
+                   String fileName = entry.metadata.path.substring(entry.metadata.path.length()-4); //todo check this
+                   fileName = fileName + ".html";
                    try (InputStream inputStream = new ByteArrayInputStream(htmlContent.getBytes())) {
                        DbxEntry.File uploadedFile = dropboxClient.uploadFile(fileName, DbxWriteMode.force(),
                                htmlContent.length(), inputStream);
