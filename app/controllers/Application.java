@@ -143,27 +143,18 @@ public class Application extends Controller {
             System.err.println(" ++++ Headers are: " + headers.toString());
             Http.RequestBody requestBody = request().body();
             System.err.println("Request body is: " + requestBody.asRaw().asBytes());
-            if (requestBody == null) {
-                System.err.println("%%%% Request body is null %%%");
-            }
-            else if (requestBody.asJson().asText() == null) {
-                System.err.println(" ^^^ JSON message is null ^^^");
+            byte[] tempBytes = requestBody.asRaw().asBytes();
+            if (tempBytes != null) {
+                System.err.println("this is not null----------------------");
             }
             String message = requestBody.asText();
-            if (message == null) {
-                System.err.println("## Message is null ##");
+            if (message ==null) {
+                System.err.println("___ message is null ___");
             }
-            if (requestBody.asRaw().asBytes() != null) {
-                System.err.println("&&&&&&&&&&&& YAY!!!!!! &&&& ");
-            }
-            for (byte b : requestBody.asRaw().asBytes()) {
-                System.err.print(b);
-            }
-            System.err.println("");
             byte[] messageBytes = message.getBytes();
 
             if (messageBytes == null) {
-                System.err.println("## messageBytes is null ##");
+                System.err.println("#### messageBytes is null ####");
             }
             byte[] encodedBytes = sha256_HMAC.doFinal(messageBytes);
             if (encodedBytes == null) {
