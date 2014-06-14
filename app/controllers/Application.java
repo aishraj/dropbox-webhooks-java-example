@@ -142,6 +142,7 @@ public class Application extends Controller {
             Map<String, String[]> headers = request().headers();
             System.err.println(" ++++ Headers are: " + headers.toString());
             Http.RequestBody requestBody = request().body();
+            System.err.println("Request body is: " + requestBody.asRaw().asBytes());
             if (requestBody == null) {
                 System.err.println("%%%% Request body is null %%%");
             }
@@ -152,6 +153,13 @@ public class Application extends Controller {
             if (message == null) {
                 System.err.println("## Message is null ##");
             }
+            if (requestBody.asRaw().asBytes() != null) {
+                System.err.println("&&&&&&&&&&&& YAY!!!!!! &&&& ");
+            }
+            for (byte b : requestBody.asRaw().asBytes()) {
+                System.err.print(b);
+            }
+            System.err.println("");
             byte[] messageBytes = message.getBytes();
 
             if (messageBytes == null) {
