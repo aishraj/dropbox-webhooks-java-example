@@ -137,6 +137,8 @@ public class Application extends Controller {
     private static Boolean validateRequest() {
         String[] signatureArray = request().headers().get("X-Dropbox-Signature");
         String signature = signatureArray[0];
+        log.info("*********** Signature array for dropbox header signature is ***** : {}", signatureArray);
+        System.err.println("********* signature array is ********" + signatureArray);
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
