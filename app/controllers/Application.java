@@ -140,18 +140,14 @@ public class Application extends Controller {
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
             sha256_HMAC.init(secretKey);
             Http.RequestBody requestBody = request().body();
-            byte[] messageBytes = requestBody.asRaw().asBytes();
+            String message = requestBody.asJson().asText();
+            byte[] messageBytes = message.getBytes();
 
             //String message = requestBody.asText();
             //todo handle nulls properly
             //write a bodyparser
-            if (messageBytes == null) {
-                System.err.println("#### messageBytes is null ####");
-            }
             byte[] encodedBytes = sha256_HMAC.doFinal(messageBytes);
-            if (encodedBytes == null) {
-                System.err.println("## encodedBytes is null ##");
-            }
+            System.err.println("Encoded our bytes are : " + Hex.encodeHexString(encodedBytes));
             return signature.equals(Hex.encodeHexString(encodedBytes));
         } catch (NoSuchAlgorithmException e) {
             log.error("Cannot validate request. Invalid algorithm : {}",e);
