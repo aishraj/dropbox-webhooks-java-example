@@ -84,7 +84,7 @@ public class Application extends Controller {
         }
         catch (DbxWebAuth.BadStateException ex) {
             // Send them back to the start of the auth flow.
-            //todo use the same csrf key both the times
+            // use the same csrf key both the times
             log.info("Bad state exception. Redirecting again.");
             String redirectUrl = "";
             if (Http.Context.current().request().host().startsWith("127.0.0.1")) {
@@ -117,7 +117,7 @@ public class Application extends Controller {
         String accessToken = authFinish.accessToken;
         String uid = authFinish.userId;
         String urlState = authFinish.urlState;
-        //todo: store the values in redis
+
         redisClient.hset("tokens", uid, accessToken);
         Promise<Boolean> performConversionForUser = Promise.promise(() -> processUser(uid));
         return performConversionForUser.map(aBoolean -> {
@@ -134,7 +134,7 @@ public class Application extends Controller {
         String[] signatureArray = request().headers().get("X-Dropbox-Signature");
         String signature = signatureArray[0];
         log.info("*********** Signature array for dropbox header signature is ***** :", Arrays.asList(signatureArray).toString());
-        System.err.println("********* signature array is ********" + signatureArray);
+        System.err.println("********* signature array is ********" + Arrays.asList(signatureArray).toString());
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
