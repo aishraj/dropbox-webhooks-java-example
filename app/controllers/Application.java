@@ -209,9 +209,10 @@ public class Application extends Controller {
                    String htmlContent = "Hello world"; //Replace with impl
                    File uploadFile = new File(htmlContent);
                    String fileName = entry.lcPath.substring(entry.lcPath.length()-4); //todo check this
-                   fileName = fileName + ".html";
+                   fileName = "/" + fileName + ".html";
                    try (InputStream inputStream = new ByteArrayInputStream(htmlContent.getBytes())) {
                        DbxEntry.File uploadedFile = dropboxClient.uploadFile(fileName, DbxWriteMode.force(), uploadFile.length(), inputStream);
+                       System.out.println("uploaded file of size" + uploadedFile.humanSize);
                    } catch (IOException e) {
                        log.error("IO Exception while uploading file : {} ", e);
                        return false;
