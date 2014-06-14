@@ -133,8 +133,8 @@ public class Application extends Controller {
     private static Boolean validateRequest() {
         String[] signatureArray = request().headers().get("X-Dropbox-Signature");
         String signature = signatureArray[0];
-        log.info("*********** Signature array for dropbox header signature is ***** :", Arrays.asList(signatureArray).toString());
         System.err.println("********* signature array is ********" + Arrays.asList(signatureArray).toString());
+        System.err.println("Content type is : "+request().getHeader("Content-Type"));
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
@@ -142,20 +142,11 @@ public class Application extends Controller {
             Map<String, String[]> headers = request().headers();
             System.err.println(" ++++ Headers are: " + headers.toString());
             Http.RequestBody requestBody = request().body();
-            if (requestBody == null)  {
-                System.err.println("^^^^^ Request Body is NULL ^^^");
-            }
-            System.err.println("Request body is: " + requestBody.asRaw().asBytes());
-            byte[] tempBytes = requestBody.asRaw().asBytes();
-            if (tempBytes != null) {
-                System.err.println("this is not null----------------------");
-            }
-            String message = requestBody.asText();
-            if (message ==null) {
-                System.err.println("___ message is null ___");
-            }
-            byte[] messageBytes = message.getBytes();
+            byte[] messageBytes = requestBody.asRaw().asBytes();
 
+            //String message = requestBody.asText();
+            //todo handle nulls properly
+            //write a bodyparser
             if (messageBytes == null) {
                 System.err.println("#### messageBytes is null ####");
             }
