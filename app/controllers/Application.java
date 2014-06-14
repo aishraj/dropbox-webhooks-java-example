@@ -1,7 +1,9 @@
 package controllers;
 
 import com.dropbox.core.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.typesafe.plugin.RedisPlugin;
+import org.apache.commons.codec.binary.Hex;
 import play.Logger;
 import play.Play;
 import play.libs.F.Promise;
@@ -14,11 +16,16 @@ import redis.clients.jedis.JedisPool;
 import views.html.done;
 import views.html.index;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
 
@@ -29,21 +36,22 @@ public class Application extends Controller {
     private static Jedis redisClient;
     private static DbxRequestConfig dropboxConfig;
 
+    private static final String APP_KEY = "npv9f72j4ldebvg";
+    private static final String APP_SECRET = "bwc2xenbkuagiee";
+
     public static Result index() {
         return ok(index.render());
     }
 
     static {
 
-        String APP_KEY = "npv9f72j4ldebvg";
-        String APP_SECRET = "bwc2xenbkuagiee";
         DbxAppInfo appInfo = new DbxAppInfo(APP_KEY, APP_SECRET);
 
         dropboxConfig = new DbxRequestConfig(
                 "Sundoro", Locale.getDefault().toString());
 
         String sessionKey = "random-csrf-token-key";
-        Map<String, String> sessionMap = new HashMap<>();
+        Map<String, String> sessionMap = new HashMap<String,String>();
         Http.Session session = new Http.Session(sessionMap);
         String redirectUrl = "";
         if (Http.Context.current().request().host().startsWith("127.0.0.1") ||
@@ -59,7 +67,7 @@ public class Application extends Controller {
         webAuth = new DbxWebAuth(dropboxConfig,appInfo,redirectUrl,csrfSessionStore);
 
         JedisPool pool = Play.application().plugin(RedisPlugin.class).jedisPool();
-        Jedis redisClient = pool.getResource();
+        redisClient = pool.getResource();
 
     }
 
@@ -113,45 +121,75 @@ public class Application extends Controller {
         String accessToken = authFinish.accessToken;
         String uid = authFinish.userId;
         String urlState = authFinish.urlState;
-
         //todo: store the values in redis
-
         redisClient.hset("tokens", uid, accessToken);
-
         Promise<Boolean> performConversionForUser = Promise.promise(() -> processUser(uid));
-
-
         return performConversionForUser.map(aBoolean -> {
             if (aBoolean) {
                 return ok(done.render());
             }
             else {
-                return Results.TODO;
+                return Results.TODO;//todo change this
             }
-        }); //todo change this
+        });
+    }
+
+    private static Boolean validateRequest() {
+        String[] signatureArray = request().headers().get("X-Dropbox-Signature");
+        String signature = signatureArray[0];
+        try {
+            Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
+            sha256_HMAC.init(secretKey);
+            String message = request().body().asText();
+            return signature.equals(Hex.encodeHexString(sha256_HMAC.doFinal(message.getBytes())));
+        } catch (NoSuchAlgorithmException e) {
+            log.error("Cannot validate request. Invalid algorithm : {}",e);
+            return false;
+        } catch (InvalidKeyException e) {
+            log.error("Cannot validate request. Invalid key : {}",e);
+            return false;
+        }
+
     }
 
     public static Result echoChallenge() {
-        return play.mvc.Results.TODO;
+        String requestArgs = request().getQueryString("challenge");
+        if (requestArgs != null) {
+            return ok(requestArgs);
+        }
+        else {
+            return ok();
+        }
     }
 
-    public static Result performWebHookTask() {
-        return play.mvc.Results.TODO;
+    public static Promise<Result> performWebHookTask() {
+        if (!validateRequest()) {
+            Promise.pure(unauthorized());
+        }
+        JsonNode rootNode = request().body().asJson();
+        Iterator<Map.Entry<String, JsonNode>> source = rootNode.fields();
+        while (source.hasNext())
+        {
+            Map.Entry<String, JsonNode> item = source.next();
+            if (item.getKey().equals("delta")) {
+                JsonNode node = item.getValue();
+            }
+        }
+        return Promise.pure(ok()); //todo remove this
     }
 
     public static Result done() {
         return ok(done.render());
     }
 
-    private Boolean validateRequest() {
-        return true;
-    }
+
 
     private static Boolean processUser(String uid) {
         String oauthToken = redisClient.hget("tokens",uid);
         String userCursor = redisClient.hget("cursors",uid);
 
-        DbxClient dropboxClient = new DbxClient(dropboxConfig,uid);
+        DbxClient dropboxClient = new DbxClient(dropboxConfig,oauthToken);
         boolean hasMore = true;
         DbxDelta<DbxEntry> result = null;
         while (hasMore) {
@@ -187,4 +225,5 @@ public class Application extends Controller {
         }
         return true;
     }
+
 }
