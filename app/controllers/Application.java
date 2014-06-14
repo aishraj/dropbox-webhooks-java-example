@@ -28,13 +28,13 @@ import java.util.Map;
 
 public class Application extends Controller {
 
-    private static Logger.ALogger log = play.Logger.of("Herioux");
+    private static Logger.ALogger log = play.Logger.of("Markdown Webhooks Example Java");
     private static  DbxWebAuth webAuth ;
     private static Jedis redisClient;
     private static DbxRequestConfig dropboxConfig;
 
-    private static final String APP_KEY = "npv9f72j4ldebvg";
-    private static final String APP_SECRET = "bwc2xenbkuagiee";
+    private static final String APP_KEY = "";
+    private static final String APP_SECRET = "";
 
     public static Result index() {
         return ok(index.render());
@@ -45,9 +45,9 @@ public class Application extends Controller {
         DbxAppInfo appInfo = new DbxAppInfo(APP_KEY, APP_SECRET);
 
         dropboxConfig = new DbxRequestConfig(
-                "Sundoro", Locale.getDefault().toString());
+                "Markdown Webhooks Example Java", Locale.getDefault().toString());
 
-        String sessionKey = "random-csrf-token-key";
+        String sessionKey = "iojafasdoi83nxopef-hvak";
         Map<String, String> sessionMap = new HashMap<String,String>();
         Http.Session session = new Http.Session(sessionMap);
         String redirectUrl = "";
@@ -126,7 +126,7 @@ public class Application extends Controller {
                 return ok(done.render());
             }
             else {
-                return Results.TODO;//todo change this
+                return internalServerError();
             }
         });
     }
@@ -139,12 +139,7 @@ public class Application extends Controller {
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
             sha256_HMAC.init(secretKey);
             Http.RequestBody requestBody = request().body();
-            //String message = requestBody.asJson().toString();
-            byte[] messageBytes = requestBody.asRaw().asBytes();//message.getBytes();
-
-            //String message = requestBody.asText();
-            //todo handle nulls properly
-            //write a bodyparser
+            byte[] messageBytes = requestBody.asRaw().asBytes();
             byte[] encodedBytes = sha256_HMAC.doFinal(messageBytes);
             System.err.println("Encoded our bytes are : " + Hex.encodeHexString(encodedBytes));
             return signature.equals(Hex.encodeHexString(encodedBytes));
@@ -240,17 +235,15 @@ public class Application extends Controller {
                     if (entry.metadata == null || entry.metadata.isFolder() || !entry.lcPath.endsWith(".md")) {
                         continue;
                     }
-                  // String htmlContent = "Hello world"; //Replace with impl
                    File targetFile;
                    DbxEntry.File dropboxFile;
                    try {
-                       targetFile = File.createTempFile("dropbox_working","temp");
+                       targetFile = File.createTempFile("dropbox_markdown","temp");
                    } catch (IOException e) {
                        log.error("Unable to create a temp file to acquire from dropbox",e);
                        return false;
                    }
                    String markDownContent;
-                   //ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                    try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
                        dropboxFile = dropboxClient.getFile(entry.lcPath,null,byteArrayOutputStream);
                        markDownContent = new String(byteArrayOutputStream.toByteArray(), StandardCharsets.UTF_8);
@@ -269,7 +262,7 @@ public class Application extends Controller {
                        log.error("Unable to convert markdown to html content",e);
                        return false;
                    }
-                   String fileName = entry.metadata.path.substring(0,entry.metadata.path.length()-4); //todo check this
+                   String fileName = entry.metadata.path.substring(0,entry.metadata.path.length()-4);
                    fileName = fileName + ".html";
                    try (InputStream inputStream = new ByteArrayInputStream(htmlContent.getBytes())) {
                        DbxEntry.File uploadedFile = dropboxClient.uploadFile(fileName, DbxWriteMode.force(),
