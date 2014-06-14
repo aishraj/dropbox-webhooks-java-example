@@ -19,7 +19,6 @@ import views.html.index;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
@@ -204,11 +203,11 @@ public class Application extends Controller {
                         continue;
                     }
                    String htmlContent = "Hello world"; //Replace with impl
-                   File uploadFile = new File(htmlContent);
                    String fileName = entry.lcPath.substring(entry.lcPath.length()-4); //todo check this
                    fileName = "/" + fileName + ".html";
                    try (InputStream inputStream = new ByteArrayInputStream(htmlContent.getBytes())) {
-                       DbxEntry.File uploadedFile = dropboxClient.uploadFile(fileName, DbxWriteMode.force(), uploadFile.length(), inputStream);
+                       DbxEntry.File uploadedFile = dropboxClient.uploadFile(fileName, DbxWriteMode.force(),
+                               htmlContent.length(), inputStream);
                        System.out.println("uploaded file of size" + uploadedFile.humanSize);
                    } catch (IOException e) {
                        log.error("IO Exception while uploading file : {} ", e);
