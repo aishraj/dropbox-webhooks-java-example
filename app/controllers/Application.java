@@ -3,6 +3,7 @@ package controllers;
 import com.dropbox.core.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.typesafe.config.ConfigFactory;
 import com.typesafe.plugin.RedisPlugin;
 import org.apache.commons.codec.binary.Hex;
 import org.markdown4j.Markdown4jProcessor;
@@ -33,8 +34,8 @@ public class Application extends Controller {
     private static Jedis redisClient;
     private static DbxRequestConfig dropboxConfig;
 
-    private static final String APP_KEY = "";
-    private static final String APP_SECRET = "";
+    private static final String APP_KEY = ConfigFactory.load().getString("app.key");
+    private static final String APP_SECRET = ConfigFactory.load().getString("app.secret");
 
     public static Result index() {
         return ok(index.render());
