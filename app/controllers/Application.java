@@ -2,15 +2,13 @@ package controllers;
 
 import com.dropbox.core.*;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.plugin.RedisPlugin;
 import org.apache.commons.codec.binary.Hex;
 import play.Logger;
 import play.Play;
 import play.libs.F.Promise;
-import play.mvc.Controller;
-import play.mvc.Http;
-import play.mvc.Result;
-import play.mvc.Results;
+import play.mvc.*;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import views.html.done;
@@ -18,9 +16,7 @@ import views.html.index;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
@@ -133,15 +129,13 @@ public class Application extends Controller {
     private static Boolean validateRequest() {
         String[] signatureArray = request().headers().get("X-Dropbox-Signature");
         String signature = signatureArray[0];
-        System.err.println("********* signature array is ********" + Arrays.asList(signatureArray).toString());
-        System.err.println("---------Content type is : "+request().getHeader("Content-Type"));
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(APP_SECRET.getBytes(), "HmacSHA256");
             sha256_HMAC.init(secretKey);
             Http.RequestBody requestBody = request().body();
-            String message = requestBody.asJson().toString();
-            byte[] messageBytes = message.getBytes();
+            //String message = requestBody.asJson().toString();
+            byte[] messageBytes = requestBody.asRaw().asBytes();//message.getBytes();
 
             //String message = requestBody.asText();
             //todo handle nulls properly
@@ -169,12 +163,32 @@ public class Application extends Controller {
         }
     }
 
+    @BodyParser.Of(BodyParser.Raw.class)
     public static Promise<Result> performWebHookTask() {
         if (!validateRequest()) {
             System.err.println("Validation of the request failed");
             Promise.pure(unauthorized());
         }
-        JsonNode rootNode = request().body().asJson();
+        Http.RequestBody requestBody = request().body();
+        Http.RawBuffer rawRequest = requestBody.asRaw();
+        File requestFile = rawRequest.asFile();
+        ObjectMapper mapper = new ObjectMapper();
+        BufferedReader fileReader = null;
+        try {
+           fileReader  = new BufferedReader(new FileReader(requestFile));
+        } catch (FileNotFoundException e) {
+            System.err.println("Unable to create a file from the raw request");
+            log.error("Unable to create a file form the raw request body",e);
+            return Promise.pure(internalServerError());
+        }
+        JsonNode rootNode;
+        try {
+            rootNode = mapper.readTree(fileReader);
+        } catch (IOException e) {
+            System.err.println("Unable to parse the JSON object");
+            log.error("Unable to parse the JSON object",e);
+            return Promise.pure(internalServerError());
+        }
         Iterator<Map.Entry<String, JsonNode>> source = rootNode.fields();
         while (source.hasNext())
         {
@@ -182,8 +196,8 @@ public class Application extends Controller {
             if (item.getKey().equals("delta")) {
                 JsonNode deltaNode = item.getValue();
                 Iterator<Map.Entry<String, JsonNode>> userIterator = deltaNode.fields();
-                while(deltaNode.fields().hasNext()) {
-                    Map.Entry<String, JsonNode> userNode = source.next();
+                while(userIterator.hasNext()) {
+                    Map.Entry<String, JsonNode> userNode = userIterator.next();
                     if (userNode.getKey().equals("users")) {
                         JsonNode usersArrayNode = userNode.getValue();
                         if (usersArrayNode.isArray() ) {
@@ -195,7 +209,7 @@ public class Application extends Controller {
                 }
             }
         }
-        return Promise.pure(ok()); //todo remove this
+        return Promise.pure(ok());
     }
 
     public static Result done() {
