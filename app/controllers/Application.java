@@ -269,7 +269,7 @@ public class Application extends Controller {
                        log.error("Unable to convert markdown to html content",e);
                        return false;
                    }
-                   String fileName = entry.metadata.path.substring(entry.metadata.path.length()-4); //todo check this
+                   String fileName = entry.metadata.path.substring(0,entry.metadata.path.length()-4); //todo check this
                    fileName = fileName + ".html";
                    try (InputStream inputStream = new ByteArrayInputStream(htmlContent.getBytes())) {
                        DbxEntry.File uploadedFile = dropboxClient.uploadFile(fileName, DbxWriteMode.force(),
