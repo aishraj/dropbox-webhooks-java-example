@@ -270,7 +270,7 @@ public class Application extends Controller {
                        play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
                        return false;
                    }
-                   String fileName = entry.metadata.path.substring(0,entry.metadata.path.length()-4);
+                   String fileName = entry.metadata.path.substring(0,entry.metadata.path.length()-3);
                    fileName = fileName + ".html";
                    try (InputStream inputStream = new ByteArrayInputStream(htmlContent.getBytes())) {
                        DbxEntry.File uploadedFile = dropboxClient.uploadFile(fileName, DbxWriteMode.force(),
