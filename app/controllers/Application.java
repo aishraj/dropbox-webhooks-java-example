@@ -36,7 +36,7 @@ public class Application extends Controller {
 
     private static final String APP_KEY = ConfigFactory.load().getString("app.key");
     private static final String APP_SECRET = ConfigFactory.load().getString("app.secret");
-
+    private static JedisPool pool;
     public static Result index() {
         return ok(index.render());
     }
@@ -64,8 +64,8 @@ public class Application extends Controller {
         DbxSessionStore csrfSessionStore = new DbxPlaySessionStore(session,sessionKey);
         webAuth = new DbxWebAuth(dropboxConfig,appInfo,redirectUrl,csrfSessionStore);
 
-        JedisPool pool = Play.application().plugin(RedisPlugin.class).jedisPool();
-        redisClient = pool.getResource();
+        pool = Play.application().plugin(RedisPlugin.class).jedisPool();
+
 
     }
 
@@ -119,8 +119,9 @@ public class Application extends Controller {
         String accessToken = authFinish.accessToken;
         String uid = authFinish.userId;
         String urlState = authFinish.urlState;
-
+        redisClient = pool.getResource();
         redisClient.hset("tokens", uid, accessToken);
+        play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
         Promise<Boolean> performConversionForUser = Promise.promise(() -> processUser(uid));
         return performConversionForUser.map(aBoolean -> {
             if (aBoolean) {
@@ -218,6 +219,7 @@ public class Application extends Controller {
     }
 
     private static Boolean processUser(String uid) {
+        redisClient = pool.getResource();
         String oauthToken = redisClient.hget("tokens",uid);
         String userCursor = redisClient.hget("cursors",uid);
 
@@ -229,6 +231,7 @@ public class Application extends Controller {
                  result = dropboxClient.getDelta(userCursor);
             } catch (DbxException e) {
                 log.error("Error getting the user detail for uid : {}, cursor : {}",uid,userCursor);
+                play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
                 return false;
             }
             if (result != null) {
@@ -242,6 +245,7 @@ public class Application extends Controller {
                        targetFile = File.createTempFile("dropbox_markdown","temp");
                    } catch (IOException e) {
                        log.error("Unable to create a temp file to acquire from dropbox",e);
+                       play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
                        return false;
                    }
                    String markDownContent;
@@ -251,9 +255,11 @@ public class Application extends Controller {
 
                    } catch (IOException e) {
                        log.error("Unable to create output stream for the file",e);
+                       play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
                        return false;
                    } catch (DbxException e) {
                        log.error("Unable to get file from dropbox",e);
+                       play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
                        return false;
                    }
                    String htmlContent;
@@ -261,6 +267,7 @@ public class Application extends Controller {
                        htmlContent = new Markdown4jProcessor().process(markDownContent);
                    } catch (IOException e) {
                        log.error("Unable to convert markdown to html content",e);
+                       play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
                        return false;
                    }
                    String fileName = entry.metadata.path.substring(0,entry.metadata.path.length()-4);
@@ -271,9 +278,11 @@ public class Application extends Controller {
                        System.out.println("uploaded file of size" + uploadedFile.humanSize);
                    } catch (IOException e) {
                        log.error("IO Exception while uploading file : {} ", e);
+                       play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
                        return false;
                    } catch (DbxException e) {
                        log.error("DbxException while uploading file : {} ", e);
+                       play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
                        return false;
                    }
                }
@@ -283,6 +292,7 @@ public class Application extends Controller {
             }
 
         }
+        play.Play.application().plugin(RedisPlugin.class).jedisPool().returnResource(redisClient);
         return true;
     }
 
